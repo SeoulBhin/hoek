@@ -28,16 +28,21 @@ $ npm run dev
 |---|---|---|
 | 불러오기 | `queryLocalFonts()` 로 면(스타일) 목록을 받아 가족별로 묶는다. 허락이 없으면 Chrome 은 오류 대신 빈 목록을 줘서 그것도 "허락 안 됨"으로 본다 | `src/fonts/sources/local.js`, `src/logic.js` |
 | 그리기 | 설치된 폰트를 `FontFace("hoek-N", local("포스트스크립트 이름"))` 로 가리킨다(파일을 옮기지 않음). 화면에 보이는 줄만 등록 | `src/fonts/faces.js`, `src/Specimen.jsx` |
-| 판별 | 가족마다 대표 면 파일에서 필요한 표(name·cmap·fvar)만 조각으로 읽어 한글 글자 수, 한국어 이름, 글자 목록, 굵기 축을 얻는다. TTC 는 이름이 같은 면을 고른다 | `src/fonts/sfnt.js`, `src/useInspect.js` |
+| 판별 | 가족마다 대표 면 파일에서 필요한 표(name·cmap·fvar)만 잘라 해석해서 한글 글자 수, 한국어 이름, 글자 목록, 굵기 축을 얻는다. TTC 는 이름이 같은 면을 고른다 | `src/fonts/sfnt.js`, `src/useInspect.js` |
 | 저장 | 즐겨찾기·내 문장·크기·거르기를 `localStorage` 에. 막혀 있으면 이 창에서만 기억한다 | `src/store.js` |
 
 가변 폰트는 `local()` 로 부르면 이름 붙은 굵기(Thin~Black)가 전부 기본 굵기로 그려져서, 굵기 축 값을 직접 넣는다.
+`FontData.blob()` 은 파일을 통째로 들고 올 수 있어서(CJK 폰트는 10MB 넘음) 조각 읽기는 해석할 양을 줄일 뿐 메모리를 아끼진 않는다. 그래서 동시에 2개씩만 읽는다.
+
+### 같은 출처에 대해
+
+브라우저의 폰트 허락과 `localStorage` 는 출처(`https://seoulbhin.github.io`) 단위다. 같은 계정의 다른 GitHub Pages 저장소 페이지도 같은 출처라서, 여기서 허락하면 그 페이지들도 허락 창 없이 폰트 목록을 읽을 수 있다. 획 코드는 폰트 정보를 어디로도 보내지 않지만, 출처를 따로 쓰려면 별도 도메인에 올려야 한다. 시험용 요약(`window.__hoek`)은 주소에 `?e2e` 가 있을 때만 만든다.
 
 ## 시험
 
 ```bash
-$ npm test                                   # 폰트 표 읽기·로직·저장소 (25개, 실제 Windows 폰트 시험은 파일이 없으면 건너뜀)
-$ npm run build && python tests/e2e.py       # 실제 Chrome 으로 화면 끝까지 (29항목)
+$ npm test                                   # 폰트 표 읽기·로직·저장소 (29개, 실제 Windows 폰트 시험 8개는 파일이 없으면 건너뜀)
+$ npm run build && python tests/e2e.py       # 실제 Chrome 으로 화면 끝까지 (34항목, fontTools 대조 포함)
 $ node tools/dump-hangul.mjs out/hoek.json && python tools/crosscheck.py out/hoek.json   # fontTools 와 한글 글자 수 대조
 ```
 

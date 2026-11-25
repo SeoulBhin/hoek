@@ -1,6 +1,9 @@
 // 화면과 떨어진 순수 로직: 면 묶기·굵기 추정·검색·거르기·빠진 글자 세기. 시험은 tests/logic.test.mjs
 import { hasChar, HANGUL_TOTAL } from './fonts/sfnt.js';
 
+// 내 문장 칸을 비웠을 때 대신 보여 줄 문장(목록·비교·상세 공통)
+export const FALLBACK_SAMPLE = '다람쥐 헌 쳇바퀴에 타고파 The quick brown fox 0123';
+
 export const COMPARE_MAX = 4;
 export const COMPARE_MIN = 2;
 
@@ -77,6 +80,12 @@ export function toggleCompare(list, key) {
   if (list.includes(key)) return { list: list.filter((k) => k !== key), full: false };
   if (list.length >= COMPARE_MAX) return { list, full: true };
   return { list: [...list, key], full: false };
+}
+
+// 가변 폰트는 local() 로 부르면 기본 굵기만 나와서(11-26 실측) 굵기 축 값을 직접 넣는다. 가변이 아니면 undefined
+export function axisWeight(info, weight) {
+  const w = info?.wght;
+  return w ? Math.min(w.max, Math.max(w.min, weight)) : undefined;
 }
 
 // 가변 폰트 굵기 축 → 상세에서 보여 줄 굵기(100 단위, 범위 안)

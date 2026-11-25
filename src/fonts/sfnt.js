@@ -1,5 +1,6 @@
 // 폰트 파일(TrueType·OpenType·TTC)에서 필요한 표만 골라 읽는다.
-// 파일 전체를 읽지 않고 read(offset, length) 로 조각만 가져온다(CJK 폰트는 한 개가 10MB 넘게 크다).
+// read(offset, length) 로 필요한 조각만 꺼내 해석한다. 브라우저의 FontData.blob() 은 파일을 통째로 들고 올 수 있어서
+// (CJK 폰트는 한 개가 10MB 넘음) 메모리를 아끼는 건 아니고, 해석할 양을 줄이는 것. 동시에 읽는 수는 useInspect 가 2개로 묶는다.
 // 읽는 것: 이름(name: 포스트스크립트 이름·영어/한국어 가족 이름), 글자 목록(cmap), 굵기 축(fvar wght)
 
 export const HANGUL_FIRST = 0xac00;
@@ -23,7 +24,7 @@ async function readTableDir(read, offset) {
   const recs = await read(offset + 12, n * 16);
   const dv = view(recs);
   const tables = {};
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < Math.floor(recs.length / 16); i++) {
     const p = i * 16;
     tables[tagAt(recs, p)] = { offset: dv.getUint32(p + 8), length: dv.getUint32(p + 12) };
   }
@@ -43,7 +44,7 @@ function decodeName(bytes, platformID) {
 // name 표 → { ps, family, familyKo }
 export function parseName(bytes) {
   const dv = view(bytes);
-  const count = dv.getUint16(2);
+  const count = Math.min(dv.getUint16(2), Math.floor((bytes.length - 6) / 12));
   const strOff = dv.getUint16(4);
   const found = {};
   for (let i = 0; i < count; i++) {
@@ -69,65 +70,79 @@ export function parseName(bytes) {
   };
 }
 
+// 구간 목록을 정렬하고 겹치거나 붙은 것을 합친다(규격을 어겨 순서가 뒤섞이거나 겹친 cmap 대비)
+export function normalizeRanges(arr) {
+  const pairs = [];
+  for (let i = 0; i + 1 < arr.length; i += 2) if (arr[i] <= arr[i + 1]) pairs.push([arr[i], arr[i + 1]]);
+  pairs.sort((a, b) => a[0] - b[0]);
+  const out = [];
+  for (const [a, b] of pairs) {
+    if (out.length && out[out.length - 1] + 1 >= a) out[out.length - 1] = Math.max(out[out.length - 1], b);
+    else out.push(a, b);
+  }
+  return out;
+}
+
 // cmap 형식 4(BMP) → 글리프가 있는 글자 구간 [시작, 끝, 시작, 끝 …]. 글리프 0(.notdef)은 없는 글자로 센다
+// idRangeOffset 0 인 구간은 글자 하나씩 돌지 않고 구간째 넣는다(delta 때문에 글리프 0 이 되는 한 글자만 뺀다)
 function ranges4(dv, base) {
   const segX2 = dv.getUint16(base + 6);
   const endP = base + 14;
   const startP = endP + segX2 + 2;
   const deltaP = startP + segX2;
   const rangeP = deltaP + segX2;
+  if (rangeP + segX2 > dv.byteLength) throw new Error('cmap 4: 구간 표가 파일보다 길다');
   const out = [];
-  let runStart = -1;
-  let last = -2;
-  const push = (c) => {
-    if (c === last + 1 && runStart >= 0) { last = c; return; }
-    if (runStart >= 0) out.push(runStart, last);
-    runStart = c; last = c;
-  };
   for (let s = 0; s < segX2 / 2; s++) {
-    const end = dv.getUint16(endP + s * 2);
+    const end = Math.min(dv.getUint16(endP + s * 2), 0xfffe);
     const start = dv.getUint16(startP + s * 2);
     const delta = dv.getInt16(deltaP + s * 2);
     const ro = dv.getUint16(rangeP + s * 2);
     if (start > end) continue;
-    for (let c = start; c <= end && c !== 0xffff; c++) {
-      let g;
-      if (ro === 0) g = (c + delta) & 0xffff;
-      else {
-        const gp = rangeP + s * 2 + ro + (c - start) * 2;
-        if (gp + 2 > dv.byteLength) continue;
+    if (ro === 0) {
+      const zero = (0x10000 - delta) & 0xffff; // (c + delta) & 0xffff === 0 이 되는 글자
+      if (zero >= start && zero <= end) {
+        if (zero > start) out.push(start, zero - 1);
+        if (zero < end) out.push(zero + 1, end);
+      } else out.push(start, end);
+      continue;
+    }
+    let runStart = -1;
+    for (let c = start; c <= end; c++) {
+      const gp = rangeP + s * 2 + ro + (c - start) * 2;
+      let g = 0;
+      if (gp + 2 <= dv.byteLength) {
         g = dv.getUint16(gp);
         if (g !== 0) g = (g + delta) & 0xffff;
       }
-      if (g !== 0) push(c);
+      if (g !== 0 && runStart < 0) runStart = c;
+      if (g === 0 && runStart >= 0) { out.push(runStart, c - 1); runStart = -1; }
     }
+    if (runStart >= 0) out.push(runStart, end);
   }
-  if (runStart >= 0) out.push(runStart, last);
-  return out;
+  return normalizeRanges(out);
 }
 
 // cmap 형식 12(전 유니코드) → 구간
 function ranges12(dv, base) {
-  const n = dv.getUint32(base + 12);
+  const n = Math.min(dv.getUint32(base + 12), Math.floor((dv.byteLength - base - 16) / 12));
   const out = [];
   for (let i = 0; i < n; i++) {
     const p = base + 16 + i * 12;
     let start = dv.getUint32(p);
-    const end = dv.getUint32(p + 4);
+    const end = Math.min(dv.getUint32(p + 4), 0x10ffff);
     const g = dv.getUint32(p + 8);
     if (g === 0) start += 1; // 첫 글자가 .notdef 로 매핑된 구간
-    if (start > end) continue;
-    if (out.length && out[out.length - 1] + 1 >= start) out[out.length - 1] = Math.max(out[out.length - 1], end);
-    else out.push(start, end);
+    if (start <= end) out.push(start, end);
   }
-  return out;
+  return normalizeRanges(out);
 }
 
 // cmap 표 → { ranges: Uint32Array | null, symbol: boolean }
 // 유니코드 하위 표가 없고 기호(3,0)만 있으면 symbol=true(Wingdings 같은 기호 폰트)
 export function parseCmap(bytes) {
   const dv = view(bytes);
-  const n = dv.getUint16(2);
+  const n = Math.min(dv.getUint16(2), Math.floor((bytes.length - 4) / 8));
   const subs = [];
   for (let i = 0; i < n; i++) {
     const p = 4 + i * 8;
@@ -142,10 +157,16 @@ export function parseCmap(bytes) {
     if (s.format === 4 && (s.platformID === 3 && s.encodingID === 1 || s.platformID === 0)) return 1;
     return 9;
   };
-  const best = subs.filter((s) => rank(s) < 9).sort((a, b) => rank(a) - rank(b))[0];
-  if (!best) return { ranges: null, symbol: subs.some((s) => s.platformID === 3 && s.encodingID === 0) };
-  const arr = best.format === 12 ? ranges12(dv, best.offset) : ranges4(dv, best.offset);
-  return { ranges: Uint32Array.from(arr), symbol: false };
+  // 좋은 하위 표부터 시도하고, 깨져 있으면 다음 후보로
+  for (const sub of subs.filter((x) => rank(x) < 9).sort((x, y) => rank(x) - rank(y))) {
+    try {
+      const arr = sub.format === 12 ? ranges12(dv, sub.offset) : ranges4(dv, sub.offset);
+      return { ranges: Uint32Array.from(arr), symbol: false };
+    } catch {
+      // 다음 후보
+    }
+  }
+  return { ranges: null, symbol: subs.some((x) => x.platformID === 3 && x.encodingID === 0) };
 }
 
 // fvar → 굵기 축 { min, def, max } 또는 null
@@ -210,6 +231,7 @@ export async function listFaces(read) {
 // read(offset, length) → Promise<Uint8Array>
 export async function readFontInfo(read, wantPs) {
   const offsets = await faceOffsets(read);
+  if (!offsets.length) throw new Error('면이 없는 TTC');
   let chosen = null;
   for (const off of offsets) {
     const tables = await readTableDir(read, off);
@@ -227,7 +249,7 @@ export async function readFontInfo(read, wantPs) {
     familyKo: names.familyKo,
     ranges: cmap.ranges,
     symbol: cmap.symbol,
-    hangul: countInRange(cmap.ranges, HANGUL_FIRST, HANGUL_LAST),
+    hangul: Math.min(HANGUL_TOTAL, countInRange(cmap.ranges, HANGUL_FIRST, HANGUL_LAST)),
     wght,
     faces: offsets.length,
   };

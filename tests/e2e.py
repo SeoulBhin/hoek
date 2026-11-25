@@ -56,11 +56,15 @@ def set_input(pg, testid, text):
 
 def main():
     srv, url = start()
-    origin = url.rsplit("/hoek/", 1)[0]
+    url = url + "?e2e"
+    origin = url.rsplit("/hoek/", 1)[0]  # 권한은 출처 단위
     # fontTools 대조값(tools/dump-hangul.mjs + crosscheck.py 가 같다고 확인한 값)
+    # 대조값: 매번 새로 만들고(node 로 파일 경로 읽기) 그 값을 fontTools 와 맞춰 본 뒤에 쓴다
     ref_path = OUT / "hoek.json"
-    if not ref_path.exists():
-        subprocess.run(["node", "tools/dump-hangul.mjs", str(ref_path)], cwd=ROOT, check=True)
+    subprocess.run(["node", "tools/dump-hangul.mjs", str(ref_path)], cwd=ROOT, check=True)
+    cc = subprocess.run([sys.executable, "tools/crosscheck.py", str(ref_path)], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
+    check("파일 경로 판별 = fontTools(내 PC 폰트 전부)", cc.returncode == 0, cc.stdout[-300:])
+    print("INFO", cc.stdout.strip().splitlines()[-1] if cc.stdout.strip() else "")
     ref = json.loads(ref_path.read_text(encoding="utf-8"))
 
     with sync_playwright() as p:
@@ -90,7 +94,7 @@ def main():
             if want != "missing" and mine != want:
                 bad.append((f["family"], mine, want))
         compared = sum(1 for f in st["families"] if f["rep"] in ref)
-        check(f"브라우저 판별 = fontTools ({compared}가족 대조)", not bad and compared > 0, f"{bad[:5]} errors={st.get('errors')}")
+        check(f"브라우저 판별 = 파일 경로 판별({compared}가족 대조)", not bad and compared > 0, f"{bad[:5]} errors={st.get('errors')}")
         print(f"INFO 대조 못 한 가족 {len(st['families']) - compared}개(가변 폰트: Chrome 이 굵기마다 붙인 이름이 파일 안 이름과 달라 대조표에서 못 찾음)")
         full = [f["family"] for f in st["families"] if st["hangul"].get(f["key"]) == 11172]
         print(f"INFO 한글 11,172자 가족 {len(full)}개")
@@ -109,6 +113,11 @@ def main():
         arial = pg.locator("[data-testid=row][data-family='Arial']")
         check("내 문장이 미리보기에 반영", "Hamburgefonts" in arial.locator("[data-testid=preview]").inner_text())
         check("Arial 에 없는 한글은 흐린 글자로", arial.locator("[data-missing]").count() >= 1)
+        set_input(pg, "sample", "")
+        pg.wait_for_timeout(200)
+        arial = pg.locator("[data-testid=row][data-family='Arial']")
+        check("문장을 비우면 기본 문장으로 미리보기", "quick brown fox" in arial.locator("[data-testid=preview]").inner_text())
+        set_input(pg, "sample", "Hamburgefonts 한글")
         set_input(pg, "search", "")
 
         # 크기·즐겨찾기·거르기 → 새로고침 뒤 남음
@@ -145,10 +154,16 @@ def main():
                 box.click()
         set_input(pg, "search", "")
         check("트레이에 4개", pg.locator("[data-testid=tray-item]").count() == 4)
+        # 디자인 리뷰 1번: Layout 슬롯을 잘못 써서 트레이·목록 끝이 화면 밖으로 밀렸던 것
+        geo = pg.evaluate("""() => { const t = document.querySelector('[data-testid=show-compare]').getBoundingClientRect();
+            const l = document.querySelector('[data-testid=list]').getBoundingClientRect(); return [t.bottom, l.bottom, innerHeight]; }""")
+        check("비교 버튼과 목록 끝이 화면 안", geo[0] <= geo[2] and geo[1] <= geo[2], str(geo))
         pg.screenshot(path=str(OUT / "e2e_tray.png"))
         pg.locator("[data-testid=show-compare]").click()
         pg.wait_for_selector("[data-testid=compare]")
         check("나란히 4칸", pg.locator("[data-testid=compare-col]").count() == 4)
+        back_top = pg.evaluate("document.querySelector('[data-testid=compare] [data-testid=back]').getBoundingClientRect().top")
+        check("비교 화면 머리가 보임", 0 <= back_top < 100, str(back_top))
         pg.screenshot(path=str(OUT / "e2e_compare.png"))
         pg.locator("[data-testid=col-remove]").first.click()
         check("칸 빼면 3칸", pg.locator("[data-testid=compare-col]").count() == 3)
@@ -248,6 +263,9 @@ def main():
         pg.get_by_role("radio", name="즐겨찾기").click()
         pg.wait_for_timeout(200)
         check("저장소 막힘: 즐겨찾기는 이 창에서 동작", list_count(pg) == 1)
+        pg.goto(url.replace("?e2e", ""))
+        pg.wait_for_selector("[data-testid=list]", timeout=20000)
+        check("시험 주소가 아니면 window.__hoek 없음", pg.evaluate("typeof window.__hoek") == "undefined")
         c.close()
         b.close()
     srv.shutdown()

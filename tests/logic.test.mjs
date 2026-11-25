@@ -92,7 +92,11 @@ test('저장소: 남기고 다시 읽기, 이상한 값은 기본값', () => {
   mem.set('hoek:v1', JSON.stringify({ favorites: 'x', size: 9999, filter: 'evil' }));
   const bad = createStore(storage).get();
   assert.deepEqual(bad.favorites, DEFAULTS.favorites);
-  assert.equal(bad.size, 160);
+  assert.equal(bad.size, 120);
+  mem.set('hoek:v1', 'null');
+  const nul = createStore(storage);
+  assert.equal(nul.ok, true);
+  assert.deepEqual(nul.get(), DEFAULTS);
   assert.equal(bad.filter, 'all');
 });
 

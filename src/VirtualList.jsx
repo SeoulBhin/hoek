@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 're
 const OVERSCAN = 4;
 
 export const VirtualList = forwardRef(function VirtualList(
-  { count, rowHeight, renderRow, onVisible, label, testId },
+  { count, rowHeight, renderRow, onVisible, label, testId, getKey },
   ref,
 ) {
   const box = useRef(null);
@@ -45,7 +45,7 @@ export const VirtualList = forwardRef(function VirtualList(
   const rows = [];
   for (let i = first; i <= last; i++) {
     rows.push(
-      <div key={i} role="listitem" style={{ position: 'absolute', top: i * rowHeight, left: 0, right: 0, height: rowHeight }}>
+      <div key={getKey ? getKey(i) : i} role="listitem" aria-setsize={count} aria-posinset={i + 1} style={{ position: 'absolute', top: i * rowHeight, left: 0, right: 0, height: rowHeight }}>
         {renderRow(i)}
       </div>,
     );

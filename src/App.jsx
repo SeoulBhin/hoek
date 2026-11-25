@@ -52,8 +52,10 @@ export function App() {
 
   const { info, done, ms, prioritize } = useInspect(data.families, local.inspect);
 
-  // 시험(e2e)이 읽는 요약: 가족 이름·대표 면·한글 글자 수·판별 시간(폰트 파일 내용은 없음)
+  // 시험(e2e)이 읽는 요약: 가족 이름·대표 면·한글 글자 수·판별 시간(폰트 파일 내용은 없음).
+  // 주소에 ?e2e 가 있을 때만 만든다 — 같은 출처(같은 github.io)의 다른 페이지가 이걸 읽지 못하게(코드 리뷰 1번)
   useEffect(() => {
+    if (!new URLSearchParams(location.search).has('e2e')) return;
     window.__hoek = {
       done,
       ms,

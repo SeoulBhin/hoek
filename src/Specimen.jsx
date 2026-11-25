@@ -29,7 +29,7 @@ export function splitRuns(text, ranges) {
   return runs;
 }
 
-export function Specimen({ ps, text, size, weight, oneLine = false, testId, style, ranges }) {
+export function Specimen({ ps, text, size, weight, oneLine = false, testId, style, ranges, placeholder = false }) {
   const status = useFaceStatus(ps);
   const family = faceName(ps);
   const runs = splitRuns(text || ' ', ranges);
@@ -44,7 +44,7 @@ export function Specimen({ ps, text, size, weight, oneLine = false, testId, styl
         fontFamily: `"${family}"`,
         fontSize: size,
         lineHeight: 1.3,
-        color: 'var(--color-text-primary)',
+        color: placeholder ? 'var(--color-text-secondary)' : 'var(--color-text-primary)',
         opacity: status === 'error' ? 0.25 : 1,
         whiteSpace: oneLine ? 'nowrap' : 'pre-wrap',
         overflow: oneLine ? 'hidden' : 'visible',

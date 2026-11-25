@@ -166,3 +166,61 @@ test('가변 폰트: 굵기 축 범위를 읽는다', async () => {
   assert.deepEqual(info.wght, { min: 100, def: 400, max: 900 });
   assert.equal(info.hangul, 0);
 });
+
+// 형식 4, idRangeOffset ≠ 0: 글리프 번호를 배열에서 꺼내는 구간(CI 의 리눅스엔 실제 Windows 폰트가 없어서 여기서 시험)
+// segs: [{ start, end, delta, glyphs }] — glyphs 가 있으면 그 구간은 배열을 쓴다
+function cmap4ro(segs) {
+  const all = [...segs, { start: 0xffff, end: 0xffff, delta: 1 }];
+  const n = all.length;
+  const arr = [];
+  const ro = all.map((s, i) => {
+    if (!s.glyphs) return 0;
+    // idRangeOffset 은 '자기 자리'에서 배열 시작까지의 바이트 거리
+    const off = (n - i) * 2 + arr.length * 2;
+    arr.push(...s.glyphs);
+    return off;
+  });
+  const sub = new W().u16(4).u16(16 + n * 8 + arr.length * 2).u16(0).u16(n * 2).u16(0).u16(0).u16(0);
+  all.forEach((s) => sub.u16(s.end));
+  sub.u16(0);
+  all.forEach((s) => sub.u16(s.start));
+  all.forEach((s) => sub.i16(s.delta));
+  ro.forEach((r) => sub.u16(r));
+  arr.forEach((g) => sub.u16(g));
+  return new W().u16(0).u16(1).u16(3).u16(1).u32(12).bytes(sub.out()).out();
+}
+
+test('형식 4 배열 구간: 배열 값 0 은 없는 글자, 0 아니면 delta 를 더한다', () => {
+  // '가'~'가+3': 배열 [5, 0, 7, 0xffff], delta 1 → 6, 없음, 8, (0xffff+1)&0xffff = 0 → 없음
+  const { ranges } = parseCmap(cmap4ro([
+    { start: 0x41, end: 0x42, delta: -0x40 },
+    { start: 0xac00, end: 0xac03, delta: 1, glyphs: [5, 0, 7, 0xffff] },
+  ]));
+  assert.equal(hasChar(ranges, 0x41), true);
+  assert.equal(hasChar(ranges, 0xac00), true);
+  assert.equal(hasChar(ranges, 0xac01), false);
+  assert.equal(hasChar(ranges, 0xac02), true);
+  assert.equal(hasChar(ranges, 0xac03), false);
+  assert.equal(countInRange(ranges, HANGUL_FIRST, HANGUL_LAST), 2);
+});
+
+test('형식 4 구간째 넣기: delta 로 글리프 0 이 되는 한 글자만 뺀다', () => {
+  // 0x30~0x39, delta -0x35 → 0x35 가 글리프 0
+  const { ranges } = parseCmap(cmap4([[0x30, 0x39, -0x35]]));
+  assert.equal(hasChar(ranges, 0x34), true);
+  assert.equal(hasChar(ranges, 0x35), false);
+  assert.equal(hasChar(ranges, 0x36), true);
+});
+
+test('규격을 어긴 cmap: 순서가 뒤섞이거나 겹쳐도 글자 수가 맞고 11,172 를 넘지 않는다', async () => {
+  const messy = parseCmap(cmap12([[HANGUL_FIRST, HANGUL_LAST, 10], [0x41, 0x5a, 1], [0xb000, 0xb100, 3]])).ranges;
+  assert.equal(hasChar(messy, 0x41), true);
+  assert.equal(countInRange(messy, HANGUL_FIRST, HANGUL_LAST), HANGUL_TOTAL);
+  const info = await readFontInfo(reader(face({ cmap: cmap12([[HANGUL_FIRST, HANGUL_LAST, 10], [HANGUL_FIRST, 0xb000, 20]]) })));
+  assert.equal(info.hangul, HANGUL_TOTAL);
+});
+
+test('면이 0개인 TTC 는 오류(앱은 "못 읽음"으로 표시)', async () => {
+  const empty = new W().tag('ttcf').u32(0x00010000).u32(0).out();
+  await assert.rejects(readFontInfo(reader(empty)));
+});

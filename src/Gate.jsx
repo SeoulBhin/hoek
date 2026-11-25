@@ -7,7 +7,7 @@ import { Icon } from '@astryxdesign/core/Icon';
 import { Card } from '@astryxdesign/core/Card';
 import { Banner } from '@astryxdesign/core/Banner';
 import { ProgressBar } from '@astryxdesign/core/ProgressBar';
-import { Copy, FolderOpen, Lock, RefreshCw, ShieldCheck, Columns3, Languages } from 'lucide-react';
+import { Copy, FolderOpen, Lock, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
 function Frame({ children }) {
@@ -25,32 +25,37 @@ function Brand() {
     <VStack gap={2}>
       <Heading level={1}>획</Heading>
       <Text type="large" color="secondary">내 컴퓨터에 깔린 폰트를, 내가 쓴 문장으로 한눈에.</Text>
+      <Text type="supporting">획은 글자를 이루는 한 번의 붓질이에요.</Text>
     </VStack>
   );
 }
 
-const POINTS = [
-  [FolderOpen, '허락 한 번이면 이 컴퓨터의 폰트를 전부 불러와요'],
-  [Languages, '한글이 다 되는 폰트만 골라 볼 수 있어요'],
-  [Columns3, '마음에 드는 건 별표, 4개까지 나란히 비교'],
-  [ShieldCheck, '폰트 파일은 이 브라우저 밖으로 나가지 않아요'],
+// 허락 전이라 어떤 폰트가 있는지 모른다. 그래서 이름은 붙이지 않고 흔한 글꼴 묶음 셋으로 '이런 걸 보게 된다'만 보여 준다
+const PREVIEW = [
+  '"Malgun Gothic", "Apple SD Gothic Neo", sans-serif',
+  'Batang, "AppleMyungjo", serif',
+  'GulimChe, "D2Coding", monospace',
 ];
 
 export function Intro({ onStart, busy }) {
   return (
     <Frame>
       <Brand />
-      <VStack gap={3} data-testid="intro-points">
-        {POINTS.map(([icon, text]) => (
-          <HStack key={text} gap={3} vAlign="center">
-            <Icon icon={icon} size="sm" color="secondary" />
-            <Text>{text}</Text>
-          </HStack>
-        ))}
-      </VStack>
-      <VStack gap={2}>
+      <Card padding={4} data-testid="intro-points">
+        <VStack gap={2}>
+          {PREVIEW.map((ff) => (
+            <p key={ff} lang="ko" style={{ margin: 0, fontFamily: ff, fontSize: 26, lineHeight: 1.35, color: 'var(--color-text-primary)' }}>다람쥐 헌 쳇바퀴에 타고파</p>
+          ))}
+          <Text type="supporting">내 문장 하나로 이 컴퓨터의 폰트를 전부 이렇게 펼쳐 봐요. 한글이 다 되는 것만 거르고, 별표 치고, 4개까지 나란히 비교해요.</Text>
+        </VStack>
+      </Card>
+      <VStack gap={2} hAlign="start">
         <Button variant="primary" size="lg" label="내 폰트 불러오기" icon={<Icon icon={FolderOpen} />} onClick={onStart} isLoading={busy} data-testid="start" />
-        <Text type="supporting">누르면 Chrome 이 “글꼴 사용” 허락을 물어요. 허용을 눌러 주세요.</Text>
+        <Text type="supporting">누르면 Chrome이 “글꼴 사용” 허락을 물어요. 허용을 눌러 주세요.</Text>
+        <HStack gap={2} vAlign="center">
+          <Icon icon={ShieldCheck} size="sm" color="secondary" />
+          <Text type="supporting">폰트 파일은 이 브라우저 밖으로 나가지 않아요.</Text>
+        </HStack>
       </VStack>
     </Frame>
   );
@@ -70,7 +75,7 @@ export function Unsupported() {
     <Frame>
       <Brand />
       <Banner status="warning" title="이 브라우저에선 내 컴퓨터 폰트를 읽을 수 없어요" collapsible={false}
-        description="Chrome 이나 Edge(컴퓨터용)에서 이 주소를 열어 주세요. Firefox·Safari·휴대폰 브라우저에는 아직 이 기능이 없어요." data-testid="unsupported" />
+        description="Chrome이나 Edge(컴퓨터용)에서 이 주소를 열어 주세요. Firefox·Safari·휴대폰 브라우저에는 아직 이 기능이 없어요." data-testid="unsupported" />
       <HStack gap={2} vAlign="center">
         <Button label={copied ? '복사했어요' : '주소 복사'} icon={<Icon icon={Copy} />} onClick={copy} data-testid="copy-url" />
         <Text type="code" color="secondary" maxLines={1}>{location.href}</Text>
@@ -85,13 +90,13 @@ export function Denied({ onRetry, busy, code }) {
       <Brand />
       <Banner status={code === 'failed' ? 'error' : 'warning'} collapsible={false} data-testid="denied"
         title={code === 'empty' ? '불러온 폰트가 하나도 없어요' : code === 'failed' ? '폰트 목록을 읽다가 문제가 생겼어요' : '폰트를 읽을 허락을 받지 못했어요'}
-        description={code === 'denied' ? '허락은 이 사이트에만, 언제든 거둘 수 있어요. 아래 순서로 허용으로 바꾼 뒤 다시 시도해 주세요.' : '잠시 뒤 다시 시도해 주세요.'} />
+        description={code === 'denied' ? '허락은 이 사이트에만 적용돼요. 아래 순서로 “허용”으로 바꾼 뒤 다시 시도해 주세요.' : '잠시 뒤 다시 시도해 주세요.'} />
       {code === 'denied' && (
         <Card padding={4}>
           <VStack gap={3}>
-            <HStack gap={3} vAlign="center"><Icon icon={Lock} size="sm" color="secondary" /><Text>1. 주소창 왼쪽의 사이트 정보 아이콘을 눌러요</Text></HStack>
-            <HStack gap={3} vAlign="center"><Text color="secondary">⋯</Text><Text>2. “사이트 설정”에서 “글꼴”을 찾아요</Text></HStack>
-            <HStack gap={3} vAlign="center"><Text color="secondary">✓</Text><Text>3. “허용”으로 바꾸고 이 화면으로 돌아와요</Text></HStack>
+            <Text>1. 주소창 왼쪽의 사이트 정보 아이콘(<Icon icon={Lock} size="xsm" color="secondary" />)을 눌러요</Text>
+            <Text>2. “사이트 설정”에서 “글꼴”을 찾아요</Text>
+            <Text>3. “허용”으로 바꾸고 이 화면으로 돌아와요</Text>
           </VStack>
         </Card>
       )}

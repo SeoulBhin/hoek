@@ -14,19 +14,23 @@ import { VirtualList } from './VirtualList.jsx';
 import { HangulBadge } from './Browse.jsx';
 import { faceName } from './fonts/faces.js';
 import { hasChar } from './fonts/sfnt.js';
-import { glyphList, weightSteps, GLYPH_SETS } from './logic.js';
+import { glyphList, weightSteps, axisWeight, GLYPH_SETS, FALLBACK_SAMPLE } from './logic.js';
 
 const CELL = 64;
 
 function GlyphGrid({ ps, ranges, set }) {
   const box = useRef(null);
-  const [cols, setCols] = useState(10);
+  const [grid, setGrid] = useState({ cols: 10, cell: CELL });
+  const { cols, cell } = grid;
   const glyphs = useMemo(() => glyphList(set), [set]);
   const missing = useMemo(() => (ranges ? glyphs.filter((g) => !hasChar(ranges, g.codePointAt(0))).length : null), [glyphs, ranges]);
   useEffect(() => {
     const el = box.current;
     if (!el) return undefined;
-    const ro = new ResizeObserver(() => setCols(Math.max(4, Math.floor(el.clientWidth / CELL))));
+    const ro = new ResizeObserver(() => {
+      const n = Math.max(4, Math.floor(el.clientWidth / CELL));
+      setGrid({ cols: n, cell: Math.floor(el.clientWidth / n) });
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -43,7 +47,7 @@ function GlyphGrid({ ps, ranges, set }) {
             {glyphs.slice(r * cols, r * cols + cols).map((g) => {
               const has = ranges ? hasChar(ranges, g.codePointAt(0)) : true;
               return (
-                <HStack key={g} width={CELL} height={CELL} hAlign="center" vAlign="center" data-testid="glyph" data-missing={has ? undefined : '1'}
+                <HStack key={g} width={cell} height={CELL} hAlign="center" vAlign="center" data-testid="glyph" data-missing={has ? undefined : '1'}
                   style={{ border: '1px solid var(--color-border)', marginRight: -1, marginBottom: -1, opacity: has ? 1 : 0.18 }}
                   title={`U+${g.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}${has ? '' : ' · 이 폰트에 없음'}`}>
                   <span style={{ fontFamily: `"${family}"`, fontSize: 30, lineHeight: 1, color: 'var(--color-text-primary)', fontSynthesis: 'none' }}>{g}</span>
@@ -63,7 +67,7 @@ export function Detail({ fam, info, sample, size, fav, onFav, inCompare, onCompa
   // (11-26 실측: Noto Sans KR Thin~Black 영문 폭이 모두 291). 그래서 굵기 축 값을 직접 넣는다.
   // 이름 붙은 굵기가 하나뿐인 가변 폰트는 축 범위를 100 단위로 펼쳐 보여 준다.
   const wght = info?.wght;
-  const axis = (w) => (wght ? Math.min(wght.max, Math.max(wght.min, w)) : undefined);
+  const axis = (w) => axisWeight(info, w);
   const steps = fam.faces.length > 1 ? [] : weightSteps(wght);
   const ko = info?.familyKo && info.familyKo !== fam.family ? info.familyKo : null;
   useEffect(() => {
@@ -71,10 +75,10 @@ export function Detail({ fam, info, sample, size, fav, onFav, inCompare, onCompa
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onBack]);
-  const text = sample || '다람쥐 헌 쳇바퀴에 타고파';
+  const text = sample || FALLBACK_SAMPLE;
   return (
     <Section variant="section" padding={0} height="100vh" data-testid="detail">
-      <Layout>
+      <Layout header={
         <LayoutHeader hasDivider padding={3}>
           <HStack gap={3} vAlign="center" hAlign="between" wrap="wrap">
             <HStack gap={3} vAlign="center">
@@ -92,6 +96,7 @@ export function Detail({ fam, info, sample, size, fav, onFav, inCompare, onCompa
             </HStack>
           </HStack>
         </LayoutHeader>
+      } content={
         <LayoutContent padding={4} isScrollable>
           <VStack gap={6}>
             <VStack gap={3}>
@@ -121,7 +126,7 @@ export function Detail({ fam, info, sample, size, fav, onFav, inCompare, onCompa
             </VStack>
           </VStack>
         </LayoutContent>
-      </Layout>
+      } />
     </Section>
   );
 }

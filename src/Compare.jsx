@@ -8,8 +8,10 @@ import { Icon } from '@astryxdesign/core/Icon';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { Slider } from '@astryxdesign/core/Slider';
 import { Card } from '@astryxdesign/core/Card';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft, X, ChevronRight } from 'lucide-react';
 import { Specimen } from './Specimen.jsx';
+import { FALLBACK_SAMPLE, axisWeight } from './logic.js';
+import { SIZE_MIN, SIZE_MAX } from './store.js';
 import { HangulBadge } from './Browse.jsx';
 
 const LINES = ['가나다라마바사 아자차카타파하', 'ABCDEFGHIJKLM abcdefghijklm', '0123456789 ₩1,250 (2026.11.26)'];
@@ -23,7 +25,7 @@ export function Compare({ fams, info, settings, setSettings, onRemove, onBack, o
   const { sample, size } = settings;
   return (
     <Section variant="section" padding={0} height="100vh" data-testid="compare">
-      <Layout>
+      <Layout header={
         <LayoutHeader hasDivider padding={3}>
           <VStack gap={3}>
             <HStack gap={3} vAlign="center">
@@ -33,14 +35,15 @@ export function Compare({ fams, info, settings, setSettings, onRemove, onBack, o
             </HStack>
             <HStack gap={3} vAlign="end" wrap="wrap">
               <VStack style={{ flex: '2 1 320px' }}>
-                <TextInput label="내 문장" value={sample} onChange={(v) => setSettings({ sample: v })} />
+                <TextInput label="내 문장" value={sample} onChange={(v) => setSettings({ sample: v })} placeholder={`비우면 기본 문장: ${FALLBACK_SAMPLE}`} />
               </VStack>
               <VStack style={{ flex: '1 1 180px' }}>
-                <Slider label={`크기 ${size}px`} min={12} max={120} value={size} onChange={(v) => setSettings({ size: v })} valueDisplay="none" />
+                <Slider label={`크기 ${size}px`} min={SIZE_MIN} max={SIZE_MAX} value={size} onChange={(v) => setSettings({ size: v })} valueDisplay="none" />
               </VStack>
             </HStack>
           </VStack>
         </LayoutHeader>
+      } content={
         <LayoutContent padding={4} isScrollable>
           <HStack gap={3} vAlign="start" style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${Math.max(240, Math.min(420, size * 6))}px, 1fr))` }}>
             {fams.map((f) => (
@@ -52,20 +55,20 @@ export function Compare({ fams, info, settings, setSettings, onRemove, onBack, o
                       <HStack gap={2}><HangulBadge info={info[f.key]} /></HStack>
                     </VStack>
                     <HStack gap={1}>
-                      <Button size="sm" variant="ghost" label="자세히" onClick={() => onOpen(f.key)} />
-                      <Button size="sm" variant="ghost" isIconOnly label="비교에서 빼기" icon={<Icon icon={X} size="sm" />} onClick={() => onRemove(f.key)} data-testid="col-remove" />
+                      <Button size="sm" variant="ghost" label={`${f.family} 자세히`} endContent={<Icon icon={ChevronRight} size="sm" />} onClick={() => onOpen(f.key)}>자세히</Button>
+                      <Button size="sm" variant="ghost" isIconOnly label={`${f.family} 비교에서 빼기`} icon={<Icon icon={X} size="sm" />} onClick={() => onRemove(f.key)} data-testid="col-remove" />
                     </HStack>
                   </HStack>
-                  <Specimen ps={f.rep.ps} text={sample} size={size} testId="compare-sample" ranges={info[f.key]?.ranges} />
+                  <Specimen ps={f.rep.ps} text={sample || FALLBACK_SAMPLE} placeholder={!sample} weight={axisWeight(info[f.key], f.rep.weight)} size={size} testId="compare-sample" ranges={info[f.key]?.ranges} />
                   <VStack gap={1}>
-                    {LINES.map((l) => <Specimen key={l} ps={f.rep.ps} text={l} size={18} ranges={info[f.key]?.ranges} />)}
+                    {LINES.map((l) => <Specimen key={l} ps={f.rep.ps} text={l} size={18} weight={axisWeight(info[f.key], f.rep.weight)} ranges={info[f.key]?.ranges} />)}
                   </VStack>
                 </VStack>
               </Card>
             ))}
           </HStack>
         </LayoutContent>
-      </Layout>
+      } />
     </Section>
   );
 }
