@@ -7,7 +7,7 @@ import { Icon } from '@astryxdesign/core/Icon';
 import { Card } from '@astryxdesign/core/Card';
 import { Banner } from '@astryxdesign/core/Banner';
 import { ProgressBar } from '@astryxdesign/core/ProgressBar';
-import { Copy, FolderOpen, Lock, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Copy, FolderOpen, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 
 function Frame({ children }) {
@@ -94,7 +94,7 @@ export function Denied({ onRetry, busy, code }) {
       {code === 'denied' && (
         <Card padding={4}>
           <VStack gap={3}>
-            <Text>1. 주소창 왼쪽의 사이트 정보 아이콘(<Icon icon={Lock} size="xsm" color="secondary" />)을 눌러요</Text>
+            <Text>1. 주소창 왼쪽의 사이트 정보 아이콘을 눌러요</Text>
             <Text>2. “사이트 설정”에서 “글꼴”을 찾아요</Text>
             <Text>3. “허용”으로 바꾸고 이 화면으로 돌아와요</Text>
           </VStack>
