@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 're
 const OVERSCAN = 4;
 
 export const VirtualList = forwardRef(function VirtualList(
-  { count, rowHeight, renderRow, onVisible, label, testId, getKey },
+  { count, rowHeight, renderRow, onVisible, label, testId, getKey, innerWidth },
   ref,
 ) {
   const box = useRef(null);
@@ -53,7 +53,8 @@ export const VirtualList = forwardRef(function VirtualList(
   return (
     <div ref={box} role="list" aria-label={label} data-testid={testId} data-count={count} tabIndex={-1}
       style={{ height: '100%', overflowY: 'auto', overscrollBehavior: 'contain', position: 'relative' }}>
-      <div style={{ height: count * rowHeight, position: 'relative' }}>{rows}</div>
+      {/* 스크롤 막대는 화면 끝에 두고 줄만 가운데 폭으로 모은다 */}
+      <div style={{ height: count * rowHeight, position: 'relative', maxWidth: innerWidth, marginInline: 'auto' }}>{rows}</div>
     </div>
   );
 });

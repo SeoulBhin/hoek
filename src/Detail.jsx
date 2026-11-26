@@ -1,6 +1,7 @@
 // 상세: 한 가족의 굵기별 모양 + 글자표(한글 가~힣 / 영문 / 숫자·기호). 폰트에 없는 글자는 흐리게.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { VStack, HStack, Layout, LayoutHeader, LayoutContent } from '@astryxdesign/core/Layout';
+import { PAGE_WIDTH } from './frame.js';
 import { Section } from '@astryxdesign/core/Section';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
@@ -78,7 +79,7 @@ export function Detail({ fam, info, sample, size, fav, onFav, inCompare, onCompa
   const text = sample || FALLBACK_SAMPLE;
   return (
     <Section variant="section" padding={0} height="100vh" data-testid="detail">
-      <Layout header={
+      <Layout contentWidth={PAGE_WIDTH} header={
         <LayoutHeader hasDivider padding={3}>
           <HStack gap={3} vAlign="center" hAlign="between" wrap="wrap">
             <HStack gap={3} vAlign="center">

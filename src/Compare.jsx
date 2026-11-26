@@ -1,6 +1,7 @@
 // 나란히 비교: 고른 2~4개를 같은 문장·같은 크기로 세로 칸에 나란히
 import { useEffect } from 'react';
 import { VStack, HStack, Layout, LayoutHeader, LayoutContent } from '@astryxdesign/core/Layout';
+import { WIDE_WIDTH } from './frame.js';
 import { Section } from '@astryxdesign/core/Section';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
@@ -25,7 +26,7 @@ export function Compare({ fams, info, settings, setSettings, onRemove, onBack, o
   const { sample, size } = settings;
   return (
     <Section variant="section" padding={0} height="100vh" data-testid="compare">
-      <Layout header={
+      <Layout contentWidth={WIDE_WIDTH} padding={4} header={
         <LayoutHeader hasDivider padding={3}>
           <VStack gap={3}>
             <HStack gap={3} vAlign="center">
@@ -33,13 +34,17 @@ export function Compare({ fams, info, settings, setSettings, onRemove, onBack, o
               <Heading level={4} accessibilityLevel={1}>나란히 비교</Heading>
               <Text type="supporting" hasTabularNumbers>{fams.length}개</Text>
             </HStack>
-            <HStack gap={3} vAlign="end" wrap="wrap">
-              <VStack style={{ flex: '2 1 320px' }}>
-                <TextInput label="내 문장" value={sample} onChange={(v) => setSettings({ sample: v })} placeholder={`비우면 기본 문장: ${FALLBACK_SAMPLE}`} />
+            {/* 목록 화면과 같은 한 줄: 문장 | 크기 */}
+            <HStack gap={4} vAlign="center" wrap="wrap">
+              <VStack style={{ flex: '1 1 320px' }}>
+                <TextInput label="내 문장" isLabelHidden value={sample} onChange={(v) => setSettings({ sample: v })} placeholder={`미리 볼 문장 (비우면: ${FALLBACK_SAMPLE})`} />
               </VStack>
-              <VStack style={{ flex: '1 1 180px' }}>
-                <Slider label={`크기 ${size}px`} min={SIZE_MIN} max={SIZE_MAX} value={size} onChange={(v) => setSettings({ size: v })} valueDisplay="none" />
-              </VStack>
+              <HStack gap={2} vAlign="center" style={{ flex: '0 1 240px', minWidth: 180 }}>
+                <Text type="supporting" hasTabularNumbers style={{ flexShrink: 0, minWidth: 44 }}>{size}px</Text>
+                <VStack style={{ flex: 1 }}>
+                  <Slider label="크기" isLabelHidden min={SIZE_MIN} max={SIZE_MAX} value={size} onChange={(v) => setSettings({ size: v })} valueDisplay="none" />
+                </VStack>
+              </HStack>
             </HStack>
           </VStack>
         </LayoutHeader>
