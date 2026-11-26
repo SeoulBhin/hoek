@@ -27,7 +27,7 @@ export function Compare({ fams, info, settings, setSettings, onRemove, onBack, o
   return (
     <Section variant="section" padding={0} height="100vh" data-testid="compare">
       <Layout contentWidth={WIDE_WIDTH} padding={4} header={
-        <LayoutHeader hasDivider padding={3}>
+        <LayoutHeader hasDivider paddingBlockEnd={3}>
           <VStack gap={3}>
             <HStack gap={3} vAlign="center">
               <Button variant="ghost" label="목록" icon={<Icon icon={ArrowLeft} />} onClick={onBack} data-testid="back" />

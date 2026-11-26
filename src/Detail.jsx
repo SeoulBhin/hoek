@@ -80,7 +80,7 @@ export function Detail({ fam, info, sample, size, fav, onFav, inCompare, onCompa
   return (
     <Section variant="section" padding={0} height="100vh" data-testid="detail">
       <Layout contentWidth={PAGE_WIDTH} header={
-        <LayoutHeader hasDivider padding={3}>
+        <LayoutHeader hasDivider paddingBlockEnd={3}>
           <HStack gap={3} vAlign="center" hAlign="between" wrap="wrap">
             <HStack gap={3} vAlign="center">
               <Button variant="ghost" label="목록" icon={<Icon icon={ArrowLeft} />} onClick={onBack} data-testid="back" />
